@@ -1,0 +1,13 @@
+<script>
+  async function triggerBackup() {
+    progressBar.style.width = "0%";
+    statusMsg.textContent = "Starting backup...";
+
+    const response = await fetch("/api/trigger-backup", {
+      method: "POST"
+    });
+
+    const result = await response.text();
+    console.log("Trigger response:", result);
+  }
+</script>
