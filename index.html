@@ -1,27 +1,35 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Backup Demo</title>
-</head>
-<body>
-  <h2>Trigger Backup</h2>
-  <button id="btn">Start Backup</button>
-  <div id="progress-container" style="width: 100%; background: #ddd; margin-top: 10px;">
-    <div id="progress-bar" style="width: 0%; height: 24px; background: green;"></div>
-  </div>
-  <p id="status"></p>
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@7.0.5/dist/browser/signalr.min.js"></script>
+<script>
+  const progressBar = document.getElementById('progress-bar');
+  const statusMsg = document.getElementById('status');
 
-  <script>
-    document.getElementById('btn').onclick = async () => {
-      document.getElementById('status').textContent = 'Calling backend...';
-      try {
-        const res = await fetch('/api/trigger-backup', { method: 'POST' });
-        const txt = await res.text();
-        document.getElementById('status').textContent = 'Got response: ' + txt;
-      } catch (e) {
-        document.getElementById('status').textContent = 'Error: ' + e.message;
-      }
-    };
-  </script>
-</body>
-</html>
+  // Establish SignalR connection
+  const connection = new signalR.HubConnectionBuilder()
+    .withUrl('/api')
+    .configureLogging(signalR.LogLevel.Information)
+    .build();
+
+  connection.on("backupStatus", (msg) => {
+    if (msg.status === "started") {
+      progressBar.style.width = "0%";
+      statusMsg.textContent = "Backup started...";
+    } else if (msg.status === "progress") {
+      const percent = msg.percent || 50;
+      progressBar.style.width = percent + "%";
+      statusMsg.textContent = `Backup in progress: ${percent}%`;
+    } else if (msg.status === "complete") {
+      progressBar.style.width = "100%";
+      statusMsg.textContent = "✅ Backup completed!";
+    }
+  });
+
+  connection.start().catch(err => console.error("SignalR connection error:", err));
+
+  // Button to trigger backup
+  document.getElementById('btn').onclick = async () => {
+    statusMsg.textContent = "Requesting backup...";
+    const res = await fetch('/api/trigger-backup', { method: 'POST' });
+    const result = await res.text();
+    console.log("Triggered:", result);
+  };
+</script>
