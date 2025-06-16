@@ -1,38 +1,96 @@
-<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@7.0.5/dist/browser/signalr.min.js"></script>
-<script>
-  const progressBar = document.getElementById('progress-bar');
-  const statusMsg = document.getElementById('status');
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>SQL MI Backup Trigger</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+    }
+    #btn {
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #progress-container {
+      width: 100%;
+      background-color: #e0e0e0;
+      border-radius: 6px;
+      margin-top: 20px;
+      height: 25px;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 100%;
+      background-color: #0078d4;
+      border-radius: 6px;
+      transition: width 0.4s;
+    }
+    #status {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Trigger Azure SQL MI Backup</h1>
+  <button id="btn">Start Backup</button>
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
+  <div id="status">Ready</div>
 
-  async function connectToSignalR() {
-    const res = await fetch('/api/negotiate');
-    const info = await res.json();
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@7.0.5/dist/browser/signalr.min.js"></script>
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    const statusMsg = document.getElementById('status');
+    let connection = null;
 
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(info.url, { accessTokenFactory: () => info.accessToken })
-      .configureLogging(signalR.LogLevel.Information)
-      .build();
+    async function connectToSignalR() {
+      try {
+        const res = await fetch('/api/negotiate');
+        const info = await res.json();
 
-    connection.on("backupStatus", (msg) => {
-      if (msg.status === "started") {
-        progressBar.style.width = "0%";
-        statusMsg.textContent = "🔄 Backup started...";
-      } else if (msg.status === "progress") {
-        const percent = msg.percent || 50;
-        progressBar.style.width = percent + "%";
-        statusMsg.textContent = `⏳ Backup progress: ${percent}%`;
-      } else if (msg.status === "complete") {
-        progressBar.style.width = "100%";
-        statusMsg.textContent = "✅ Backup completed!";
+        connection = new signalR.HubConnectionBuilder()
+          .withUrl(info.url, {
+            accessTokenFactory: () => info.accessToken
+          })
+          .configureLogging(signalR.LogLevel.Information)
+          .build();
+
+        connection.on("backupStatus", msg => {
+          if (msg.status === "started") {
+            progressBar.style.width = "0%";
+            statusMsg.textContent = "🔄 Backup started...";
+          } else if (msg.status === "progress") {
+            const percent = msg.percent || 50;
+            progressBar.style.width = percent + "%";
+            statusMsg.textContent = `⏳ Backup progress: ${percent}%`;
+          } else if (msg.status === "complete") {
+            progressBar.style.width = "100%";
+            statusMsg.textContent = "✅ Backup completed!";
+          }
+        });
+
+        await connection.start();
+        console.log("SignalR connected");
+      } catch (err) {
+        console.error("SignalR connection failed:", err);
+        statusMsg.textContent = "❌ SignalR connection failed";
       }
-    });
+    }
 
-    await connection.start();
-    console.log("SignalR connected.");
-  }
+    document.getElementById('btn').onclick = async () => {
+      statusMsg.textContent = "⏳ Connecting to SignalR...";
+      await connectToSignalR();
 
-  document.getElementById('btn').onclick = async () => {
-    statusMsg.textContent = "Calling backup...";
-    await connectToSignalR();
-    await fetch('/api/trigger-backup', { method: 'POST' });
-  };
-</script>
+      statusMsg.textContent = "🚀 Starting backup...";
+      await fetch('/api/trigger-backup', { method: 'POST' });
+    };
+  </script>
+</body>
+</html>
