@@ -3,33 +3,36 @@
   const progressBar = document.getElementById('progress-bar');
   const statusMsg = document.getElementById('status');
 
-  // Establish SignalR connection
-  const connection = new signalR.HubConnectionBuilder()
-    .withUrl('/api')
-    .configureLogging(signalR.LogLevel.Information)
-    .build();
+  async function connectToSignalR() {
+    const res = await fetch('/api/negotiate');
+    const info = await res.json();
 
-  connection.on("backupStatus", (msg) => {
-    if (msg.status === "started") {
-      progressBar.style.width = "0%";
-      statusMsg.textContent = "Backup started...";
-    } else if (msg.status === "progress") {
-      const percent = msg.percent || 50;
-      progressBar.style.width = percent + "%";
-      statusMsg.textContent = `Backup in progress: ${percent}%`;
-    } else if (msg.status === "complete") {
-      progressBar.style.width = "100%";
-      statusMsg.textContent = "✅ Backup completed!";
-    }
-  });
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(info.url, { accessTokenFactory: () => info.accessToken })
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
 
-  connection.start().catch(err => console.error("SignalR connection error:", err));
+    connection.on("backupStatus", (msg) => {
+      if (msg.status === "started") {
+        progressBar.style.width = "0%";
+        statusMsg.textContent = "🔄 Backup started...";
+      } else if (msg.status === "progress") {
+        const percent = msg.percent || 50;
+        progressBar.style.width = percent + "%";
+        statusMsg.textContent = `⏳ Backup progress: ${percent}%`;
+      } else if (msg.status === "complete") {
+        progressBar.style.width = "100%";
+        statusMsg.textContent = "✅ Backup completed!";
+      }
+    });
 
-  // Button to trigger backup
+    await connection.start();
+    console.log("SignalR connected.");
+  }
+
   document.getElementById('btn').onclick = async () => {
-    statusMsg.textContent = "Requesting backup...";
-    const res = await fetch('/api/trigger-backup', { method: 'POST' });
-    const result = await res.text();
-    console.log("Triggered:", result);
+    statusMsg.textContent = "Calling backup...";
+    await connectToSignalR();
+    await fetch('/api/trigger-backup', { method: 'POST' });
   };
 </script>
