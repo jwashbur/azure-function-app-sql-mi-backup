@@ -1,13 +1,27 @@
-<script>
-  async function triggerBackup() {
-    progressBar.style.width = "0%";
-    statusMsg.textContent = "Starting backup...";
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Backup Demo</title>
+</head>
+<body>
+  <h2>Trigger Backup</h2>
+  <button id="btn">Start Backup</button>
+  <div id="progress-container" style="width: 100%; background: #ddd; margin-top: 10px;">
+    <div id="progress-bar" style="width: 0%; height: 24px; background: green;"></div>
+  </div>
+  <p id="status"></p>
 
-    const response = await fetch("/api/trigger-backup", {
-      method: "POST"
-    });
-
-    const result = await response.text();
-    console.log("Trigger response:", result);
-  }
-</script>
+  <script>
+    document.getElementById('btn').onclick = async () => {
+      document.getElementById('status').textContent = 'Calling backend...';
+      try {
+        const res = await fetch('/api/trigger-backup', { method: 'POST' });
+        const txt = await res.text();
+        document.getElementById('status').textContent = 'Got response: ' + txt;
+      } catch (e) {
+        document.getElementById('status').textContent = 'Error: ' + e.message;
+      }
+    };
+  </script>
+</body>
+</html>
